@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Azure.Storage.Queues;
@@ -9,6 +10,8 @@ namespace QueueApp
 {
   public class Program
   {
+    static readonly HttpClient client = new HttpClient();
+
     public static async Task Main(string[] args)
     {
       var msgText = "helloyou";
@@ -20,6 +23,7 @@ namespace QueueApp
       var sbQueueName = "myqueue";
       var blobConnectionString = Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING");
       var sbConnectionString = Environment.GetEnvironmentVariable("AZURE_SERVICE_BUS_CONNECTION_STRING");
+      var functionUrl = Environment.GetEnvironmentVariable("FUNCTION_URL") ?? "https://www.google.com";
 
       // Blob Queue
       var blobQueue = new Azure.Storage.Queues.QueueClient(blobConnectionString, blobQueueName);
@@ -34,10 +38,19 @@ namespace QueueApp
         Console.WriteLine($"{count} {msgText}");
         await blobQueue.SendMessageAsync(msgText);
         await sbQueue.SendAsync(sbMessage);
+        await Ping(functionUrl);
         count++;
       }
 
       await sbQueue.CloseAsync();
+    }
+
+    public static async Task Ping(string url)
+    {
+      HttpResponseMessage response = await client.GetAsync(url);
+      response.EnsureSuccessStatusCode();
+      string responseBody = await response.Content.ReadAsStringAsync();
+      Console.WriteLine(responseBody);
     }
   }
 }
